@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiService } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,8 @@ import {
   MessageCircle,
   Sparkles,
   Brain,
-  Users
+  Users,
+  Loader2
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -37,29 +39,60 @@ const AIAssistant: React.FC = () => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [quizTopic, setQuizTopic] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [quizLoading, setQuizLoading] = useState(false);
 
   const isTeacher = user?.role === 'teacher';
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
 
+    const userMessage = inputMessage;
     const newUserMessage: ChatMessage = {
       id: Date.now(),
       type: 'user',
-      content: inputMessage,
+      content: userMessage,
       timestamp: new Date()
     };
 
-    // Mock AI response
-    const aiResponse: ChatMessage = {
-      id: Date.now() + 1,
-      type: 'ai',
-      content: generateMockResponse(inputMessage),
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, newUserMessage, aiResponse]);
+    setMessages(prev => [...prev, newUserMessage]);
     setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      const response = await apiService.chatWithAI(userMessage, {
+        role: user?.role,
+        userId: user?._id
+      });
+
+      if (response.success && response.data) {
+        const aiResponse: ChatMessage = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: response.data.response || response.data.message || 'I apologize, but I encountered an issue processing your request.',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiResponse]);
+      } else {
+        const errorMessage: ChatMessage = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: 'I apologize, but I encountered an error. Please try again later.',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: 'I apologize, but I encountered a network error. Please check your connection and try again.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const generateMockResponse = (userInput: string): string => {
@@ -72,24 +105,49 @@ const AIAssistant: React.FC = () => {
     return responses[Math.floor(Math.random() * responses.length)];
   };
 
-  const handleGenerateQuiz = () => {
-    if (!quizTopic.trim()) return;
+  const handleGenerateQuiz = async () => {
+    if (!quizTopic.trim() || quizLoading) return;
 
-    const quizMessage: ChatMessage = {
-      id: Date.now(),
-      type: 'ai',
-      content: `I've generated a quiz on "${quizTopic}". Here are some sample questions:
-
-1. What are the fundamental principles of ${quizTopic}?
-2. How does ${quizTopic} relate to real-world applications?
-3. What are the key challenges in understanding ${quizTopic}?
-
-Would you like me to create more questions or adjust the difficulty level?`,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, quizMessage]);
+    setQuizLoading(true);
+    const topic = quizTopic;
     setQuizTopic('');
+
+    try {
+      const response = await apiService.generateQuiz({
+        topic,
+        difficulty: 'medium',
+        questionCount: 5,
+        questionTypes: ['multiple_choice', 'short_answer']
+      });
+
+      if (response.success && response.data) {
+        const quizMessage: ChatMessage = {
+          id: Date.now(),
+          type: 'ai',
+          content: response.data.quiz || response.data.message || `I've generated a quiz on "${topic}". Please check the response for details.`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, quizMessage]);
+      } else {
+        const errorMessage: ChatMessage = {
+          id: Date.now(),
+          type: 'ai',
+          content: `I encountered an error generating the quiz on "${topic}". Please try again.`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        id: Date.now(),
+        type: 'ai',
+        content: `I encountered a network error while generating the quiz. Please try again.`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setQuizLoading(false);
+    }
   };
 
   const quickActions = isTeacher ? [
@@ -185,9 +243,18 @@ Would you like me to create more questions or adjust the difficulty level?`,
                     placeholder="Ask me anything..."
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                     className="flex-1"
+                    disabled={isLoading}
                   />
-                  <Button onClick={handleSendMessage} className="bg-gradient-primary">
-                    <Send className="h-4 w-4" />
+                  <Button 
+                    onClick={handleSendMessage} 
+                    className="bg-gradient-primary"
+                    disabled={isLoading || !inputMessage.trim()}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -239,10 +306,19 @@ Would you like me to create more questions or adjust the difficulty level?`,
                 <Button 
                   onClick={handleGenerateQuiz}
                   className="w-full bg-gradient-secondary"
-                  disabled={!quizTopic.trim()}
+                  disabled={!quizTopic.trim() || quizLoading}
                 >
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Generate Quiz
+                  {quizLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Generate Quiz
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>

@@ -7,6 +7,7 @@ const Submission = require('./Submission');
 const Doubt = require('./Doubt');
 const { Badge, Milestone } = require('./Badge');
 const Leaderboard = require('./Leaderboard');
+const RecentActivity = require('./RecentActivity');
 
 module.exports = {
   Teacher,
@@ -18,5 +19,6 @@ module.exports = {
   Doubt,
   Badge,
   Milestone,
-  Leaderboard
+  Leaderboard,
+  RecentActivity
 };

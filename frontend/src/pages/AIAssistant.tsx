@@ -62,7 +62,7 @@ const AIAssistant: React.FC = () => {
     try {
       const response = await apiService.chatWithAI(userMessage, {
         role: user?.role,
-        userId: user?._id
+        userId: user?.id
       });
 
       if (response.success && response.data) {

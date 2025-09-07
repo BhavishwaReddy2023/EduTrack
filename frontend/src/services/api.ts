@@ -70,6 +70,9 @@ export interface AuthResponse {
 }
 
 class ApiService {
+  generateQuizSuggestions(arg0: { topic: string; questionCount: number; teacherContext: { name: string; subjects: any; gradeLevels: any; }; }) {
+    throw new Error('Method not implemented.');
+  }
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token');
     console.log('Getting auth headers, token exists:', !!token);

@@ -15,6 +15,7 @@ import AIAssistant from "@/pages/AIAssistant";
 import Statistics from "@/pages/Statistics";
 import Profile from "@/pages/Profile";
 import Classrooms from "@/pages/Classrooms";
+import Chatbot from "@/pages/Chatbot";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,16 @@ const App = () => (
                   <ProtectedRoute>
                     <MainLayout>
                       <AIAssistant />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chatbot"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <Chatbot />
                     </MainLayout>
                   </ProtectedRoute>
                 }

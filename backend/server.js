@@ -39,6 +39,8 @@ app.use(session({
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/student', require('./src/routes/student'));
+app.use('/api/teacher', require('./src/routes/teacher'));
 
 // Health check route
 app.get('/api/health', (req, res) => {

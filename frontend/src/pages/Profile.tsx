@@ -37,9 +37,9 @@ const Profile: React.FC = () => {
         <p className="text-muted-foreground">Manage your account and view your achievements</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
         {/* Profile Card */}
-        <div className="lg:col-span-1">
+        <div className="xl:col-span-1">
           <Card className="shadow-card">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
@@ -109,7 +109,7 @@ const Profile: React.FC = () => {
         </div>
 
         {/* Stats and Achievements */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-4 lg:space-y-6">
           {/* Performance Stats */}
           <Card className="shadow-card">
             <CardHeader>
@@ -120,7 +120,7 @@ const Profile: React.FC = () => {
               <CardDescription>Your academic progress and achievements</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                 {isStudent ? (
                   <>
                     <div className="text-center p-4 rounded-lg bg-primary/5">
@@ -190,49 +190,61 @@ const Profile: React.FC = () => {
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Award className="h-5 w-5 text-accent" />
+                <Trophy className="h-5 w-5 text-accent" />
                 Badges & Achievements
               </CardTitle>
               <CardDescription>Your earned accomplishments and milestones</CardDescription>
             </CardHeader>
             <CardContent>
-              {(user.badges && user.badges.length > 0) || (stats?.badges && stats.badges.length > 0) ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(user.badges || stats?.badges || []).map((badge, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <div className="p-2 rounded-full bg-accent/10">
-                        {badge === 'consistent' && <Target className="h-5 w-5 text-accent" />}
-                        {badge === 'achiever' && <Trophy className="h-5 w-5 text-accent" />}
-                        {badge === 'creator' && <BookOpen className="h-5 w-5 text-accent" />}
-                        {badge === 'mentor' && <User className="h-5 w-5 text-accent" />}
-                        {!['consistent', 'achiever', 'creator', 'mentor'].includes(badge) && 
-                          <Star className="h-5 w-5 text-accent" />}
-                      </div>
-                      <div>
-                        <h4 className="font-medium capitalize">{badge}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {badge === 'consistent' && 'Maintained learning streak'}
-                          {badge === 'achiever' && 'High performance record'}
-                          {badge === 'creator' && 'Content creation excellence'}
-                          {badge === 'mentor' && 'Outstanding teaching'}
-                          {!['consistent', 'achiever', 'creator', 'mentor'].includes(badge) && 
-                            'Special achievement earned'}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+              <div className="space-y-3">
+                {/* Consistent Learner Badge */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200">
+                  <div className="p-2 rounded-full bg-yellow-500/20">
+                    <Award className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-yellow-800">Consistent Learner</p>
+                    <p className="text-sm text-yellow-600">Maintained 7-day study streak</p>
+                  </div>
+                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">New</Badge>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h4 className="font-medium mb-2">No badges yet</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {isStudent 
-                      ? "Complete assignments and maintain streaks to earn badges!" 
-                      : "Create engaging content and help students to earn recognition!"}
-                  </p>
+
+                {/* Mathematics Master Badge */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+                  <div className="p-2 rounded-full bg-blue-500/20">
+                    <Star className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-blue-800">Mathematics Master</p>
+                    <p className="text-sm text-blue-600">Scored 95% in Mathematics Quiz</p>
+                  </div>
+                  <Badge variant="outline" className="border-blue-200 text-blue-700">3 days ago</Badge>
                 </div>
-              )}
+
+                {/* Assignment Ace Badge */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+                  <div className="p-2 rounded-full bg-green-500/20">
+                    <ClipboardList className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-green-800">Assignment Ace</p>
+                    <p className="text-sm text-green-600">Completed 5 assignments on time</p>
+                  </div>
+                  <Badge variant="outline" className="border-green-200 text-green-700">1 week ago</Badge>
+                </div>
+
+                {/* Material Explorer Badge */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200">
+                  <div className="p-2 rounded-full bg-purple-500/20">
+                    <BookOpen className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-purple-800">Material Explorer</p>
+                    <p className="text-sm text-purple-600">Downloaded 10+ study materials</p>
+                  </div>
+                  <Badge variant="outline" className="border-purple-200 text-purple-700">2 weeks ago</Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

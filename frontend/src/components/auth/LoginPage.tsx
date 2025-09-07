@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookOpen, GraduationCap, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import RegisterForm from './RegisterForm';
 
 const LoginPage: React.FC = () => {
+  const [showRegister, setShowRegister] = useState(false);
   const [studentForm, setStudentForm] = useState({ email: 'student@example.com', password: 'student123' });
   const [teacherForm, setTeacherForm] = useState({ email: 'teacher@example.com', password: 'teacher123' });
   const { login, loading, isAuthenticated } = useAuth();
@@ -22,6 +24,25 @@ const LoginPage: React.FC = () => {
     await login(form.email, form.password, role);
   };
 
+  if (showRegister) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+                <BookOpen className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">EduTrack</h1>
+            <p className="text-white/80">Join our learning community</p>
+          </div>
+          <RegisterForm onBackToLogin={() => setShowRegister(false)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -31,7 +52,7 @@ const LoginPage: React.FC = () => {
               <BookOpen className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">EduPortal</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">EduTrack</h1>
           <p className="text-white/80">Your gateway to learning excellence</p>
         </div>
 
@@ -114,7 +135,17 @@ const LoginPage: React.FC = () => {
               </TabsContent>
             </Tabs>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
+            <div className="mt-6 text-center">
+              <Button
+                variant="link"
+                onClick={() => setShowRegister(true)}
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Don't have an account? Sign up
+              </Button>
+            </div>
+            
+            <div className="mt-4 text-center text-sm text-muted-foreground">
               <p>Demo Credentials:</p>
               <p>Student: student@example.com / student123</p>
               <p>Teacher: teacher@example.com / teacher123</p>

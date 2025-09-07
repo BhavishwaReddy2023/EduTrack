@@ -26,7 +26,7 @@ build/
 .next/
 
 # dotenv environment files
-.env
+# .env
 .env.*.local
 
 # OS / editor files

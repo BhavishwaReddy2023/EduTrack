@@ -66,8 +66,37 @@ const Profile: React.FC = () => {
               
               <div className="flex items-center gap-3">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Joined {user.joinedAt}</span>
+                <span className="text-sm">Joined {new Date(user.joinedAt).toLocaleDateString()}</span>
               </div>
+              
+              {/* Role-specific information */}
+              {user.role === 'student' && user.studentId && (
+                <div className="flex items-center gap-3">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">ID: {user.studentId}</span>
+                </div>
+              )}
+              
+              {user.role === 'student' && user.grade && (
+                <div className="flex items-center gap-3">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Grade: {user.grade}</span>
+                </div>
+              )}
+              
+              {user.role === 'teacher' && user.department && (
+                <div className="flex items-center gap-3">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Department: {user.department}</span>
+                </div>
+              )}
+              
+              {user.role === 'teacher' && user.qualification && (
+                <div className="flex items-center gap-3">
+                  <Award className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{user.qualification}</span>
+                </div>
+              )}
               
               <Separator />
               
@@ -125,22 +154,30 @@ const Profile: React.FC = () => {
                 ) : (
                   <>
                     <div className="text-center p-4 rounded-lg bg-primary/5">
-                      <div className="text-2xl font-bold text-primary">3</div>
+                      <div className="text-2xl font-bold text-primary">
+                        {stats?.totalClassrooms || 0}
+                      </div>
                       <div className="text-sm text-muted-foreground">Classrooms</div>
                     </div>
                     
                     <div className="text-center p-4 rounded-lg bg-secondary/5">
-                      <div className="text-2xl font-bold text-secondary">87</div>
+                      <div className="text-2xl font-bold text-secondary">
+                        {stats?.totalStudents || 0}
+                      </div>
                       <div className="text-sm text-muted-foreground">Students</div>
                     </div>
                     
                     <div className="text-center p-4 rounded-lg bg-accent/5">
-                      <div className="text-2xl font-bold text-accent">15</div>
+                      <div className="text-2xl font-bold text-accent">
+                        {stats?.totalAssignments || 0}
+                      </div>
                       <div className="text-sm text-muted-foreground">Assignments</div>
                     </div>
                     
                     <div className="text-center p-4 rounded-lg bg-warning/5">
-                      <div className="text-2xl font-bold text-warning">42</div>
+                      <div className="text-2xl font-bold text-warning">
+                        {stats?.totalMaterials || 0}
+                      </div>
                       <div className="text-sm text-muted-foreground">Materials</div>
                     </div>
                   </>
@@ -159,9 +196,9 @@ const Profile: React.FC = () => {
               <CardDescription>Your earned accomplishments and milestones</CardDescription>
             </CardHeader>
             <CardContent>
-              {stats?.badges && stats.badges.length > 0 ? (
+              {(user.badges && user.badges.length > 0) || (stats?.badges && stats.badges.length > 0) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {stats.badges.map((badge, index) => (
+                  {(user.badges || stats?.badges || []).map((badge, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <div className="p-2 rounded-full bg-accent/10">
                         {badge === 'consistent' && <Target className="h-5 w-5 text-accent" />}

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, AuthContextType } from '@/types/auth';
-import { mockLogin, generateMockJWT, saveJWT, getJWT, clearJWT, validateJWT } from '@/utils/auth';
+import { User, AuthContextType, StudentRegisterRequest, TeacherRegisterRequest } from '@/types/auth';
+import { apiService } from '@/services/api';
+import { mapBackendUserToFrontend } from '@/utils/userMapper';
 import { useToast } from '@/hooks/use-toast';
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -23,38 +24,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check for existing JWT on mount
-    const jwt = getJWT();
-    if (jwt) {
-      const validatedUser = validateJWT(jwt.token);
-      if (validatedUser) {
-        setUser(validatedUser);
-      } else {
-        clearJWT();
+    // Check for existing JWT on mount and fetch current user
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      console.log('Initializing auth with token:', token ? 'exists' : 'not found');
+      
+      if (token) {
+        try {
+          const response = await apiService.getCurrentUser();
+          console.log('getCurrentUser response:', response);
+          
+          if (response.success && response.data) {
+            console.log('Response data structure:', response.data);
+            
+            // Handle different response structures
+            let backendUser;
+            if (response.data.user) {
+              // Backend returns { user: userData, authMethod: 'jwt'|'session' }
+              backendUser = response.data.user;
+            } else if ('_id' in response.data) {
+              // Backend returns user data directly
+              backendUser = response.data as any;
+            } else {
+              console.error('Unexpected response structure:', response.data);
+              localStorage.removeItem('auth_token');
+              setLoading(false);
+              return;
+            }
+            
+            const userData = mapBackendUserToFrontend(backendUser);
+            setUser(userData);
+            console.log('User authenticated on refresh:', userData);
+          } else {
+            console.log('Auth response not successful:', response);
+            localStorage.removeItem('auth_token');
+          }
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+          localStorage.removeItem('auth_token');
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string, role: 'student' | 'teacher'): Promise<boolean> => {
     try {
       setLoading(true);
-      const authenticatedUser = await mockLogin(email, password, role);
+      const response = await apiService.login({ email, password, role });
       
-      if (authenticatedUser) {
-        const token = generateMockJWT(authenticatedUser);
-        const jwt = {
-          token,
-          expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
-          user: authenticatedUser
-        };
+      if (response.success && response.data) {
+        const userData = mapBackendUserToFrontend(response.data.user);
         
-        saveJWT(jwt);
-        setUser(authenticatedUser);
+        setUser(userData);
+        console.log('User logged in:', userData);
         
         toast({
           title: "Welcome back!",
-          description: `Logged in as ${authenticatedUser.role}`,
+          description: `Logged in as ${userData.role}`,
           className: "bg-success text-success-foreground",
         });
         
@@ -63,11 +92,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         toast({
           variant: "destructive",
           title: "Login failed",
-          description: "Invalid credentials or role mismatch",
+          description: response.error || "Invalid credentials or role mismatch",
         });
         return false;
       }
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         variant: "destructive",
         title: "Login error",
@@ -79,18 +109,69 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = (): void => {
-    clearJWT();
-    setUser(null);
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully",
-    });
+  const logout = async (): Promise<void> => {
+    try {
+      await apiService.logout();
+      setUser(null);
+      console.log('User logged out');
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully",
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if API call fails
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully",
+      });
+    }
+  };
+
+  const register = async (userData: StudentRegisterRequest | TeacherRegisterRequest): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const response = await apiService.register(userData);
+      
+      if (response.success && response.data) {
+        const mappedUser = mapBackendUserToFrontend(response.data.user);
+        setUser(mappedUser);
+        console.log('User registered:', mappedUser);
+        
+        toast({
+          title: "Registration Successful!",
+          description: `Welcome to EduTrack! You can now start as a ${userData.role}.`,
+          className: "bg-success text-success-foreground",
+        });
+        
+        return true;
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Registration failed",
+          description: response.error || "Registration failed. Please try again.",
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        variant: "destructive",
+        title: "Registration error",
+        description: "Something went wrong. Please try again.",
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value: AuthContextType = {
     user,
     login,
+    register,
     logout,
     loading,
     isAuthenticated: !!user,

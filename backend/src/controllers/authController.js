@@ -88,7 +88,7 @@ const login = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'User not Found. Please Register.' });
     }
 
     // Check password

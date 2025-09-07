@@ -93,6 +93,17 @@ class ApiService {
         };
       }
 
+      // Handle backend response format - if data has success field, use it directly
+      if (data.success !== undefined) {
+        return {
+          success: data.success,
+          data: data.data,
+          message: data.message,
+          error: data.error
+        };
+      }
+
+      // Fallback for other response formats
       return {
         success: true,
         data,
@@ -201,6 +212,254 @@ class ApiService {
 
     const response = await fetch(url, config);
     return this.handleResponse<T>(response);
+  }
+
+  // Dashboard API methods
+  async getDashboardStats(): Promise<ApiResponse<any>> {
+    return this.request('/api/dashboard/stats');
+  }
+
+  async getRecentActivity(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/dashboard/recent-activity');
+  }
+
+  // Materials API methods
+  async uploadMaterial(formData: FormData): Promise<ApiResponse<any>> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${API_BASE_URL}/api/materials/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+      credentials: 'include',
+    });
+    return this.handleResponse(response);
+  }
+
+  async getMaterials(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/materials');
+  }
+
+  async getMaterialById(materialId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/materials/${materialId}`);
+  }
+
+  async updateMaterial(materialId: string, data: any): Promise<ApiResponse<any>> {
+    return this.request(`/api/materials/${materialId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMaterial(materialId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/materials/${materialId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Assignments API methods
+  async createAssignment(formData: FormData): Promise<ApiResponse<any>> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${API_BASE_URL}/api/assignments`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+      credentials: 'include',
+    });
+    return this.handleResponse(response);
+  }
+
+  async getAssignments(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/assignments');
+  }
+
+  async getAssignmentById(assignmentId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/assignments/${assignmentId}`);
+  }
+
+  async updateAssignment(assignmentId: string, data: any): Promise<ApiResponse<any>> {
+    return this.request(`/api/assignments/${assignmentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAssignment(assignmentId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/assignments/${assignmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSubmissions(assignmentId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/assignments/${assignmentId}/submissions`);
+  }
+
+  async submitAssignment(assignmentId: number, submission: { content: string; submissionType: string }): Promise<ApiResponse<any>> {
+    return this.request(`/api/student/assignments/${assignmentId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(submission)
+    });
+  }
+
+  async gradeSubmission(submissionId: string, grade: number, feedback?: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/assignments/submissions/${submissionId}/grade`, {
+      method: 'POST',
+      body: JSON.stringify({ grade, feedback })
+    });
+  }
+
+  // Classrooms API methods
+  async createClassroom(data: any): Promise<ApiResponse<any>> {
+    return this.request('/api/classrooms', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getClassrooms(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/classrooms');
+  }
+
+  async getClassroomById(classroomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}`);
+  }
+
+  async updateClassroom(classroomId: string, data: any): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteClassroom(classroomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async generateInviteCode(classroomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}/invite-code`, {
+      method: 'POST',
+    });
+  }
+
+  async getClassroomStudents(classroomId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/classrooms/${classroomId}/students`);
+  }
+
+  async getClassroomAssignments(classroomId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/classrooms/${classroomId}/assignments`);
+  }
+
+  async getClassroomMaterials(classroomId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/classrooms/${classroomId}/materials`);
+  }
+
+  async getClassroomAnalytics(classroomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}/analytics`);
+  }
+
+  async removeStudentFromClassroom(classroomId: string, studentId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}/students/${studentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Doubts API methods
+  async getDoubts(assignmentId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/assignments/${assignmentId}/doubts`);
+  }
+
+  async createDoubt(assignmentId: string, question: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/assignments/${assignmentId}/doubts`, {
+      method: 'POST',
+      body: JSON.stringify({ question })
+    });
+  }
+
+  async answerDoubt(doubtId: string, answer: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/doubts/${doubtId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ answer })
+    });
+  }
+
+  async updateDoubtStatus(doubtId: string, status: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/doubts/${doubtId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async deleteDoubt(doubtId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/doubts/${doubtId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Profile API methods
+  async getProfile(): Promise<ApiResponse<any>> {
+    return this.request('/api/profile');
+  }
+
+  async updateProfile(data: any): Promise<ApiResponse<any>> {
+    return this.request('/api/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getUserBadges(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/profile/badges');
+  }
+
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<ApiResponse<any>> {
+    return this.request('/api/profile/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadAvatar(formData: FormData): Promise<ApiResponse<any>> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${API_BASE_URL}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+      credentials: 'include',
+    });
+    return this.handleResponse(response);
+  }
+
+  async getTeacherPerformance(): Promise<ApiResponse<any>> {
+    return this.request('/api/profile/performance');
+  }
+
+  // AI Assistant API methods
+  async chatWithAI(message: string, context?: any): Promise<ApiResponse<any>> {
+    return this.request('/api/ai-assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    });
+  }
+
+  async generateQuiz(data: any): Promise<ApiResponse<any>> {
+    return this.request('/api/ai-assistant/generate-quiz', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async generateMaterialSummary(materialId: string): Promise<ApiResponse<any>> {
+    return this.request('/api/ai-assistant/generate-summary', {
+      method: 'POST',
+      body: JSON.stringify({ materialId }),
+    });
   }
 }
 

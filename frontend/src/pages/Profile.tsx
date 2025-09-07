@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { 
+import { useToast } from '@/hooks/use-toast';
+import { apiService } from '@/services/api';
+import {
   User, 
   Mail, 
   Calendar, 
@@ -16,17 +18,101 @@ import {
   Edit,
   Star,
   Trophy,
-  Target
+  Target,
+  Loader2
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [profileData, setProfileData] = useState<any>(null);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch profile data from backend
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const [profileResponse, badgesResponse, activityResponse] = await Promise.all([
+          apiService.getProfile(),
+          apiService.getUserBadges(),
+          apiService.getRecentActivity()
+        ]);
+
+        if (profileResponse.success) {
+          setProfileData(profileResponse.data);
+        }
+        
+        if (badgesResponse.success) {
+          setBadges(badgesResponse.data || []);
+        }
+        
+        if (activityResponse.success) {
+          setRecentActivity(activityResponse.data || []);
+        }
+      } catch (error) {
+        setError('Failed to load profile data');
+        toast({
+          title: "Network error",
+          description: "Failed to load profile data. Please check your connection.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [user, toast]);
+
+  const handleEditProfile = () => {
+    toast({
+      title: "Edit Profile",
+      description: "Profile editing modal will be implemented next",
+    });
+  };
 
   if (!user) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
   }
 
-  const stats = user.stats;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-muted-foreground">Loading profile data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = profileData?.stats || user.stats || {};
   const isStudent = user.role === 'student';
 
   return (
@@ -100,7 +186,7 @@ const Profile: React.FC = () => {
               
               <Separator />
               
-              <Button className="w-full" variant="outline">
+              <Button className="w-full" variant="outline" onClick={handleEditProfile}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Profile
               </Button>
@@ -197,53 +283,42 @@ const Profile: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {/* Consistent Learner Badge */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200">
-                  <div className="p-2 rounded-full bg-yellow-500/20">
-                    <Award className="h-5 w-5 text-yellow-600" />
+                {badges.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Trophy className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No badges earned yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Complete assignments and activities to earn badges!</p>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-yellow-800">Consistent Learner</p>
-                    <p className="text-sm text-yellow-600">Maintained 7-day study streak</p>
-                  </div>
-                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">New</Badge>
-                </div>
-
-                {/* Mathematics Master Badge */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
-                  <div className="p-2 rounded-full bg-blue-500/20">
-                    <Star className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-blue-800">Mathematics Master</p>
-                    <p className="text-sm text-blue-600">Scored 95% in Mathematics Quiz</p>
-                  </div>
-                  <Badge variant="outline" className="border-blue-200 text-blue-700">3 days ago</Badge>
-                </div>
-
-                {/* Assignment Ace Badge */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
-                  <div className="p-2 rounded-full bg-green-500/20">
-                    <ClipboardList className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-green-800">Assignment Ace</p>
-                    <p className="text-sm text-green-600">Completed 5 assignments on time</p>
-                  </div>
-                  <Badge variant="outline" className="border-green-200 text-green-700">1 week ago</Badge>
-                </div>
-
-                {/* Material Explorer Badge */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200">
-                  <div className="p-2 rounded-full bg-purple-500/20">
-                    <BookOpen className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-purple-800">Material Explorer</p>
-                    <p className="text-sm text-purple-600">Downloaded 10+ study materials</p>
-                  </div>
-                  <Badge variant="outline" className="border-purple-200 text-purple-700">2 weeks ago</Badge>
-                </div>
+                ) : (
+                  badges.map((badge, index) => {
+                    const badgeColors = {
+                      'consistent': { bg: 'from-yellow-50 to-orange-50', border: 'border-yellow-200', icon: 'bg-yellow-500/20', iconColor: 'text-yellow-600', text: 'text-yellow-800', desc: 'text-yellow-600' },
+                      'achiever': { bg: 'from-blue-50 to-indigo-50', border: 'border-blue-200', icon: 'bg-blue-500/20', iconColor: 'text-blue-600', text: 'text-blue-800', desc: 'text-blue-600' },
+                      'creator': { bg: 'from-green-50 to-emerald-50', border: 'border-green-200', icon: 'bg-green-500/20', iconColor: 'text-green-600', text: 'text-green-800', desc: 'text-green-600' },
+                      'helper': { bg: 'from-purple-50 to-violet-50', border: 'border-purple-200', icon: 'bg-purple-500/20', iconColor: 'text-purple-600', text: 'text-purple-800', desc: 'text-purple-600' }
+                    };
+                    
+                    const colors = badgeColors[badge.type] || badgeColors['achiever'];
+                    const IconComponent = badge.type === 'consistent' ? Award : 
+                                        badge.type === 'achiever' ? Star : 
+                                        badge.type === 'creator' ? ClipboardList : BookOpen;
+                    
+                    return (
+                      <div key={index} className={`flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r ${colors.bg} border ${colors.border}`}>
+                        <div className={`p-2 rounded-full ${colors.icon}`}>
+                          <IconComponent className={`h-5 w-5 ${colors.iconColor}`} />
+                        </div>
+                        <div className="flex-1">
+                          <p className={`font-medium ${colors.text}`}>{badge.name}</p>
+                          <p className={`text-sm ${colors.desc}`}>{badge.description}</p>
+                        </div>
+                        <Badge variant="outline" className={`${colors.border} ${colors.desc}`}>
+                          {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Recent'}
+                        </Badge>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
@@ -259,38 +334,51 @@ const Profile: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-success/10">
-                    <Trophy className="h-4 w-4 text-success" />
+                {recentActivity.length === 0 ? (
+                  <div className="text-center py-8">
+                    <ClipboardList className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No recent activity</p>
                   </div>
-                  <div>
-                    <p className="font-medium">Achievement unlocked</p>
-                    <p className="text-sm text-muted-foreground">Earned "Consistent Learner" badge</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-auto">2 days ago</span>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <ClipboardList className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Assignment completed</p>
-                    <p className="text-sm text-muted-foreground">Mathematics Quiz - Score: 95%</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-auto">3 days ago</span>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-secondary/10">
-                    <BookOpen className="h-4 w-4 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Material accessed</p>
-                    <p className="text-sm text-muted-foreground">Downloaded "Introduction to Calculus"</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-auto">5 days ago</span>
-                </div>
+                ) : (
+                  recentActivity.slice(0, 5).map((activity, index) => {
+                    const getActivityIcon = (type: string) => {
+                      switch (type) {
+                        case 'badge': return Trophy;
+                        case 'assignment': return ClipboardList;
+                        case 'material': return BookOpen;
+                        case 'login': return User;
+                        default: return Target;
+                      }
+                    };
+                    
+                    const getActivityColor = (type: string) => {
+                      switch (type) {
+                        case 'badge': return 'bg-success/10 text-success';
+                        case 'assignment': return 'bg-primary/10 text-primary';
+                        case 'material': return 'bg-secondary/10 text-secondary';
+                        case 'login': return 'bg-accent/10 text-accent';
+                        default: return 'bg-muted/10 text-muted-foreground';
+                      }
+                    };
+                    
+                    const IconComponent = getActivityIcon(activity.type);
+                    
+                    return (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${getActivityColor(activity.type)}`}>
+                          <IconComponent className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{activity.title || activity.name}</p>
+                          <p className="text-sm text-muted-foreground">{activity.description}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {activity.timestamp ? new Date(activity.timestamp).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </CardContent>
           </Card>

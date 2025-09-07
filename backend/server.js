@@ -42,6 +42,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/student', require('./src/routes/student'));
 app.use('/api/teacher', require('./src/routes/teacher'));
 
+// Teacher Portal Routes
+app.use('/api/dashboard', require('./src/routes/dashboard'));
+app.use('/api/materials', require('./src/routes/materials'));
+app.use('/api/assignments', require('./src/routes/assignments'));
+app.use('/api/classrooms', require('./src/routes/classrooms'));
+app.use('/api/ai-assistant', require('./src/routes/ai-assistant'));
+app.use('/api/profile', require('./src/routes/profile'));
+app.use('/api/doubts', require('./src/routes/doubts'));
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ message: 'Server is running', timestamp: new Date().toISOString() });

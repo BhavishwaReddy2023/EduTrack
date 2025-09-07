@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiService } from '@/services/api';
+import UploadMaterialModal from '@/components/modals/UploadMaterialModal';
+import ManageClassroomsModal from '@/components/modals/ManageClassroomsModal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -16,7 +19,8 @@ import {
   Star,
   Award,
   Target,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 
 const StudentDashboard: React.FC = () => {
@@ -247,6 +251,66 @@ const StudentDashboard: React.FC = () => {
 
 const TeacherDashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [statsResponse, activityResponse] = await Promise.all([
+          apiService.getDashboardStats(),
+          apiService.getRecentActivity()
+        ]);
+
+        if (statsResponse.success) {
+          setStats(statsResponse.data);
+        } else {
+          console.error('Failed to fetch stats:', statsResponse.error);
+        }
+
+        if (activityResponse.success) {
+          setRecentActivity(activityResponse.data || []);
+        } else {
+          console.error('Failed to fetch recent activity:', activityResponse.error);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -274,7 +338,7 @@ const TeacherDashboard: React.FC = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{stats?.activeClassrooms || 0}</div>
             <p className="text-xs text-muted-foreground">Currently teaching</p>
           </CardContent>
         </Card>
@@ -285,7 +349,7 @@ const TeacherDashboard: React.FC = () => {
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">87</div>
+            <div className="text-2xl font-bold text-primary">{stats?.totalStudents || 0}</div>
             <p className="text-xs text-muted-foreground">Across all classes</p>
           </CardContent>
         </Card>
@@ -296,7 +360,7 @@ const TeacherDashboard: React.FC = () => {
             <ClipboardList className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary">15</div>
+            <div className="text-2xl font-bold text-secondary">{stats?.totalAssignments || 0}</div>
             <p className="text-xs text-muted-foreground">This semester</p>
           </CardContent>
         </Card>
@@ -307,7 +371,7 @@ const TeacherDashboard: React.FC = () => {
             <BookOpen className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">42</div>
+            <div className="text-2xl font-bold text-accent">{stats?.totalMaterials || 0}</div>
             <p className="text-xs text-muted-foreground">Resources shared</p>
           </CardContent>
         </Card>
@@ -324,35 +388,30 @@ const TeacherDashboard: React.FC = () => {
             <CardDescription>Latest classroom updates</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-success/10">
-                <CheckCircle className="h-4 w-4 text-success" />
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${
+                    activity.type === 'assignment' ? 'bg-success/10' :
+                    activity.type === 'material' ? 'bg-primary/10' :
+                    activity.type === 'student' ? 'bg-secondary/10' :
+                    'bg-muted/10'
+                  }`}>
+                    {activity.type === 'assignment' && <CheckCircle className="h-4 w-4 text-success" />}
+                    {activity.type === 'material' && <BookOpen className="h-4 w-4 text-primary" />}
+                    {activity.type === 'student' && <Users className="h-4 w-4 text-secondary" />}
+                  </div>
+                  <div>
+                    <p className="font-medium">{activity.title}</p>
+                    <p className="text-sm text-muted-foreground">{activity.description}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No recent activity</p>
               </div>
-              <div>
-                <p className="font-medium">Assignment graded</p>
-                <p className="text-sm text-muted-foreground">Mathematics Quiz - 25 submissions</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                <BookOpen className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">New material uploaded</p>
-                <p className="text-sm text-muted-foreground">Chapter 5: Advanced Calculus</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-secondary/10">
-                <Users className="h-4 w-4 text-secondary" />
-              </div>
-              <div>
-                <p className="font-medium">New student joined</p>
-                <p className="text-sm text-muted-foreground">Physics Class - Emma Wilson</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -363,20 +422,42 @@ const TeacherDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Button className="w-full justify-start gap-3 h-12 bg-gradient-primary">
+              <Button 
+                className="w-full justify-start gap-3 h-12 bg-gradient-primary"
+                onClick={() => navigate('/assignments')}
+              >
                 <ClipboardList className="h-5 w-5" />
                 Create New Assignment
               </Button>
               
-              <Button variant="outline" className="w-full justify-start gap-3 h-12">
-                <BookOpen className="h-5 w-5 text-primary" />
-                Upload Learning Material
-              </Button>
+              <UploadMaterialModal onUploadSuccess={() => {
+                // Refresh dashboard data after successful upload
+                const refreshData = async () => {
+                  try {
+                    const [statsResponse, activityResponse] = await Promise.all([
+                      apiService.getDashboardStats(),
+                      apiService.getRecentActivity()
+                    ]);
+                    if (statsResponse.success) setStats(statsResponse.data);
+                    if (activityResponse.success) setRecentActivity(activityResponse.data || []);
+                  } catch (error) {
+                    console.error('Error refreshing dashboard:', error);
+                  }
+                };
+                refreshData();
+              }}>
+                <Button variant="outline" className="w-full justify-start gap-3 h-12">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  Upload Learning Material
+                </Button>
+              </UploadMaterialModal>
               
-              <Button variant="outline" className="w-full justify-start gap-3 h-12">
-                <Users className="h-5 w-5 text-secondary" />
-                Manage Classrooms
-              </Button>
+              <ManageClassroomsModal>
+                <Button variant="outline" className="w-full justify-start gap-3 h-12">
+                  <Users className="h-5 w-5 text-secondary" />
+                  Manage Classrooms
+                </Button>
+              </ManageClassroomsModal>
               
               <Button variant="outline" className="w-full justify-start gap-3 h-12">
                 <TrendingUp className="h-5 w-5 text-accent" />

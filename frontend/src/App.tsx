@@ -15,6 +15,7 @@ import AIAssistant from "@/pages/AIAssistant";
 import Statistics from "@/pages/Statistics";
 import Profile from "@/pages/Profile";
 import Classrooms from "@/pages/Classrooms";
+import ManageClassroom from "@/pages/ManageClassroom";
 import Chatbot from "@/pages/Chatbot";
 import NotFound from "./pages/NotFound";
 
@@ -105,6 +106,16 @@ const App = () => (
                   <ProtectedRoute requiredRole="teacher">
                     <MainLayout>
                       <Classrooms />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/classrooms/:id/manage"
+                element={
+                  <ProtectedRoute requiredRole="teacher">
+                    <MainLayout>
+                      <ManageClassroom />
                     </MainLayout>
                   </ProtectedRoute>
                 }

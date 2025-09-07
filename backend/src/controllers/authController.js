@@ -1,49 +1,62 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const Teacher = require('../models/Teacher');
+const Student = require('../models/Student');
 
 // Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (userId, role) => {
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
 // Register new user
 const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, role, name, ...additionalFields } = req.body;
 
     // Validate input
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!username || !email || !password || !role || !name) {
+      return res.status(400).json({ error: 'Username, email, password, role, and name are required' });
+    }
+
+    if (!['student', 'teacher'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be either student or teacher' });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
-    });
+    // Check if user already exists in both collections
+    const existingTeacher = await Teacher.findOne({ $or: [{ email }, { username }] });
+    const existingStudent = await Student.findOne({ $or: [{ email }, { username }] });
 
-    if (existingUser) {
+    if (existingTeacher || existingStudent) {
       return res.status(400).json({ 
         error: 'User with this email or username already exists' 
       });
     }
 
-    // Create new user
-    const user = new User({ username, email, password });
+    // Create new user based on role
+    let user;
+    const userData = { username, email, password, name, ...additionalFields };
+    
+    if (role === 'teacher') {
+      user = new Teacher(userData);
+    } else {
+      user = new Student(userData);
+    }
+    
     await user.save();
 
     // Generate JWT token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, role);
 
     // Set session
     req.session.userId = user._id;
+    req.session.userRole = role;
 
     res.status(201).json({
-      message: 'User registered successfully',
-      user,
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} registered successfully`,
+      user: { ...user.toJSON(), role },
       token
     });
   } catch (error) {
@@ -55,15 +68,25 @@ const register = async (req, res) => {
 // Login user
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!email || !password || !role) {
+      return res.status(400).json({ error: 'Email, password, and role are required' });
     }
 
-    // Find user by email
-    const user = await User.findOne({ email }).select('+password');
+    if (!['student', 'teacher'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be either student or teacher' });
+    }
+
+    // Find user by email and role
+    let user;
+    if (role === 'teacher') {
+      user = await Teacher.findOne({ email }).select('+password');
+    } else {
+      user = await Student.findOne({ email }).select('+password');
+    }
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -75,17 +98,18 @@ const login = async (req, res) => {
     }
 
     // Generate JWT token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, role);
 
     // Set session
     req.session.userId = user._id;
+    req.session.userRole = role;
 
     // Remove password from user object
     user.password = undefined;
 
     res.json({
       message: 'Login successful',
-      user,
+      user: { ...user.toJSON(), role },
       token
     });
   } catch (error) {

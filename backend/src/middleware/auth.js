@@ -1,5 +1,16 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const Teacher = require('../models/Teacher');
+const Student = require('../models/Student');
+
+// Helper function to find user by ID and role
+const findUserByIdAndRole = async (userId, role) => {
+  if (role === 'teacher') {
+    return await Teacher.findById(userId);
+  } else if (role === 'student') {
+    return await Student.findById(userId);
+  }
+  return null;
+};
 
 // Middleware to verify JWT token
 const verifyJWT = async (req, res, next) => {
@@ -11,13 +22,14 @@ const verifyJWT = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    const user = await findUserByIdAndRole(decoded.userId, decoded.role);
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid token. User not found.' });
     }
 
-    req.user = user;
+    req.user = { ...user.toJSON(), role: decoded.role };
+    req.userRole = decoded.role;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid token.' });
@@ -25,9 +37,18 @@ const verifyJWT = async (req, res, next) => {
 };
 
 // Middleware to verify session
-const verifySession = (req, res, next) => {
-  if (req.session && req.session.userId) {
-    return next();
+const verifySession = async (req, res, next) => {
+  if (req.session && req.session.userId && req.session.userRole) {
+    try {
+      const user = await findUserByIdAndRole(req.session.userId, req.session.userRole);
+      if (user) {
+        req.user = { ...user.toJSON(), role: req.session.userRole };
+        req.userRole = req.session.userRole;
+        return next();
+      }
+    } catch (error) {
+      // Session user lookup failed
+    }
   }
   return res.status(401).json({ error: 'Access denied. No valid session.' });
 };
@@ -40,10 +61,11 @@ const authenticate = async (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId);
+      const user = await findUserByIdAndRole(decoded.userId, decoded.role);
       
       if (user) {
-        req.user = user;
+        req.user = { ...user.toJSON(), role: decoded.role };
+        req.userRole = decoded.role;
         req.authMethod = 'jwt';
         return next();
       }
@@ -53,11 +75,12 @@ const authenticate = async (req, res, next) => {
   }
 
   // If JWT fails or no token, try session authentication
-  if (req.session && req.session.userId) {
+  if (req.session && req.session.userId && req.session.userRole) {
     try {
-      const user = await User.findById(req.session.userId);
+      const user = await findUserByIdAndRole(req.session.userId, req.session.userRole);
       if (user) {
-        req.user = user;
+        req.user = { ...user.toJSON(), role: req.session.userRole };
+        req.userRole = req.session.userRole;
         req.authMethod = 'session';
         return next();
       }
@@ -70,8 +93,22 @@ const authenticate = async (req, res, next) => {
   return res.status(401).json({ error: 'Access denied. Please login.' });
 };
 
+// Middleware to check if user has required role
+const requireRole = (requiredRole) => {
+  return (req, res, next) => {
+    if (!req.userRole || req.userRole !== requiredRole) {
+      return res.status(403).json({ 
+        error: `Access denied. ${requiredRole} role required.` 
+      });
+    }
+    next();
+  };
+};
+
 module.exports = {
   verifyJWT,
   verifySession,
-  authenticate
+  authenticate,
+  requireRole,
+  findUserByIdAndRole
 };

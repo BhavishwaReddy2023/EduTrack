@@ -32,6 +32,7 @@ const mockMaterials = [
     classroom: "Mathematics",
     uploadDate: "2024-01-15",
     size: "2.4 MB",
+    
     description: "Comprehensive guide covering basic calculus concepts and derivatives"
   },
   {

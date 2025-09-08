@@ -472,6 +472,22 @@ class ApiService {
     });
   }
 
+  async extractTextFromFile(file: File): Promise<ApiResponse<any>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${API_BASE_URL}/api/ai-assistant/extract-text`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+      credentials: 'include',
+    });
+    return this.handleResponse(response);
+  }
+
   async generateQuiz(data: any): Promise<ApiResponse<any>> {
     return this.request('/api/ai-assistant/generate-quiz', {
       method: 'POST',

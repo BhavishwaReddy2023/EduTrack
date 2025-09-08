@@ -45,6 +45,27 @@ const createAssignment = async (req, res) => {
       }));
     }
 
+    // Parse quiz data if provided
+    let parsedQuestions = questions || [];
+    if (req.body.quizData) {
+      try {
+        const quizData = JSON.parse(req.body.quizData);
+        // If quizData contains structured questions, use them
+        if (quizData.questions && Array.isArray(quizData.questions)) {
+          parsedQuestions = quizData.questions;
+        }
+        // Store the raw quiz content for display
+        if (quizData.quiz) {
+          // You can store this in description or a separate field
+          if (!description) {
+            description = quizData.quiz;
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing quiz data:', error);
+      }
+    }
+
     const assignment = new Assignment({
       title,
       description,
@@ -55,7 +76,7 @@ const createAssignment = async (req, res) => {
       classroom: classroomId,
       dueDate: new Date(dueDate),
       totalPoints: points || 100,
-      questions: questions || [],
+      questions: parsedQuestions,
       timeLimit: timeLimit ? parseInt(timeLimit) : null,
       lateSubmissionAllowed: allowLateSubmissions !== false,
       attachments,

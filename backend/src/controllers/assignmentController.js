@@ -418,6 +418,182 @@ const gradeSubmission = async (req, res) => {
   }
 };
 
+const getStudentAssignments = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+    const { status, subject } = req.query;
+
+    // Build filter for student's classrooms
+    const filter = {
+      classroom: { $in: req.user.classrooms || [] },
+      status: 'active',
+      isActive: true
+    };
+
+    if (subject) {
+      filter.subject = new RegExp(subject, 'i');
+    }
+
+    const assignments = await Assignment.find(filter)
+      .populate('classroom', 'name')
+      .populate('teacher', 'name')
+      .sort({ dueDate: 1 })
+      .lean();
+
+    // Get student's submissions for these assignments
+    const assignmentIds = assignments.map(a => a._id);
+    const submissions = await Submission.find({
+      assignment: { $in: assignmentIds },
+      student: studentId
+    }).lean();
+
+    // Create submission map for quick lookup
+    const submissionMap = {};
+    submissions.forEach(sub => {
+      submissionMap[sub.assignment.toString()] = sub;
+    });
+
+    // Add submission status to each assignment
+    const assignmentsWithStatus = assignments.map(assignment => {
+      const submission = submissionMap[assignment._id.toString()];
+      const now = new Date();
+      const dueDate = new Date(assignment.dueDate);
+      
+      let assignmentStatus = 'pending';
+      if (submission) {
+        assignmentStatus = submission.status || 'submitted';
+      } else if (dueDate < now) {
+        assignmentStatus = 'overdue';
+      }
+
+      return {
+        ...assignment,
+        submissionStatus: assignmentStatus,
+        submission: submission || null,
+        isOverdue: dueDate < now && !submission,
+        timeRemaining: dueDate > now ? dueDate - now : 0
+      };
+    });
+
+    // Filter by status if requested
+    let filteredAssignments = assignmentsWithStatus;
+    if (status) {
+      filteredAssignments = assignmentsWithStatus.filter(a => a.submissionStatus === status);
+    }
+
+    res.json({
+      success: true,
+      data: filteredAssignments
+    });
+  } catch (error) {
+    console.error('Get student assignments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch assignments'
+    });
+  }
+};
+
+const submitAssignment = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const studentId = req.user._id;
+    const { content, answers } = req.body;
+
+    // Check if assignment exists and is available
+    const assignment = await Assignment.findById(assignmentId);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
+    }
+
+    // Check if student is in the assignment's classroom
+    if (!req.user.classrooms.includes(assignment.classroom.toString())) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // Check if already submitted
+    const existingSubmission = await Submission.findOne({
+      assignment: assignmentId,
+      student: studentId
+    });
+
+    if (existingSubmission) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assignment already submitted'
+      });
+    }
+
+    // Handle file attachments if any
+    let attachments = [];
+    if (req.files && req.files.length > 0) {
+      attachments = req.files.map(file => ({
+        fileName: file.originalname,
+        fileUrl: file.path,
+        fileType: file.mimetype,
+        cloudinaryPublicId: file.filename
+      }));
+    }
+
+    // Create submission
+    const submission = new Submission({
+      assignment: assignmentId,
+      student: studentId,
+      content: content || '',
+      answers: answers || [],
+      attachments,
+      submittedAt: new Date(),
+      status: 'submitted'
+    });
+
+    await submission.save();
+
+    // Update assignment's submissions array
+    await Assignment.findByIdAndUpdate(assignmentId, {
+      $push: { submissions: submission._id }
+    });
+
+    // Update student stats
+    await req.user.constructor.findByIdAndUpdate(studentId, {
+      $inc: { 
+        'stats.completedAssignments': 1,
+        'stats.totalPoints': assignment.totalPoints || 0
+      },
+      $push: { submissions: submission._id }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: '🎉 Assignment submitted successfully! Great job!',
+      data: submission
+    });
+  } catch (error) {
+    console.error('Submit assignment error:', error);
+    
+    // Clean up uploaded files if submission failed
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        try {
+          await cloudinary.uploader.destroy(file.filename);
+        } catch (cleanupError) {
+          console.error('File cleanup error:', cleanupError);
+        }
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit assignment'
+    });
+  }
+};
+
 module.exports = {
   createAssignment,
   getAssignments,
@@ -425,5 +601,7 @@ module.exports = {
   updateAssignment,
   deleteAssignment,
   getSubmissions,
-  gradeSubmission
+  gradeSubmission,
+  getStudentAssignments,
+  submitAssignment
 };

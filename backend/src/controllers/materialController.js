@@ -244,15 +244,26 @@ const deleteMaterial = async (req, res) => {
 const trackDownload = async (req, res) => {
   try {
     const { materialId } = req.params;
+    const studentId = req.user._id;
 
-    await Material.findByIdAndUpdate(
-      materialId,
-      { $inc: { downloadCount: 1 } }
-    );
+    const material = await Material.findById(materialId);
+    if (!material) {
+      return res.status(404).json({
+        success: false,
+        message: 'Material not found'
+      });
+    }
+
+    // Add download record if student hasn't downloaded before
+    await material.addDownload(studentId);
 
     res.json({
       success: true,
-      message: 'Download tracked'
+      message: 'Download tracked',
+      data: {
+        downloadUrl: material.file.url || material.file.path,
+        filename: material.file.originalName || material.title
+      }
     });
   } catch (error) {
     console.error('Track download error:', error);
@@ -263,11 +274,103 @@ const trackDownload = async (req, res) => {
   }
 };
 
+const getStudentMaterials = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+    const { type, subject, classroom } = req.query;
+
+    // Build filter for student's classrooms
+    const filter = {
+      isActive: true,
+      $or: [
+        { isPublic: true },
+        { classroom: { $in: req.user.classrooms || [] } }
+      ]
+    };
+
+    if (type) {
+      filter.type = type.toLowerCase();
+    }
+    if (subject) {
+      filter.subject = new RegExp(subject, 'i');
+    }
+    if (classroom) {
+      filter.classroom = classroom;
+    }
+
+    const materials = await Material.find(filter)
+      .populate('classroom', 'name')
+      .populate('teacher', 'name')
+      .sort({ publishedAt: -1 })
+      .lean();
+
+    // Add view status for each material
+    const materialsWithStatus = materials.map(material => {
+      const hasViewed = material.views.some(v => v.student.toString() === studentId.toString());
+      const hasDownloaded = material.downloads.some(d => d.student.toString() === studentId.toString());
+      
+      return {
+        ...material,
+        hasViewed,
+        hasDownloaded,
+        fileSizeFormatted: material.fileSizeFormatted
+      };
+    });
+
+    res.json({
+      success: true,
+      data: materialsWithStatus
+    });
+  } catch (error) {
+    console.error('Get student materials error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch materials'
+    });
+  }
+};
+
+const viewMaterial = async (req, res) => {
+  try {
+    const { materialId } = req.params;
+    const studentId = req.user._id;
+    const { duration = 0 } = req.body;
+
+    const material = await Material.findById(materialId)
+      .populate('classroom', 'name')
+      .populate('teacher', 'name');
+
+    if (!material) {
+      return res.status(404).json({
+        success: false,
+        message: 'Material not found'
+      });
+    }
+
+    // Add view record
+    await material.addView(studentId, duration);
+
+    res.json({
+      success: true,
+      message: 'View tracked',
+      data: material
+    });
+  } catch (error) {
+    console.error('View material error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to track view'
+    });
+  }
+};
+
 module.exports = {
   uploadMaterial,
   getMaterials,
   getMaterialById,
   updateMaterial,
   deleteMaterial,
-  trackDownload
+  trackDownload,
+  getStudentMaterials,
+  viewMaterial
 };

@@ -40,6 +40,7 @@ app.use(session({
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/student', require('./src/routes/student'));
+app.use('/api/student/classrooms', require('./src/routes/student-classrooms'));
 app.use('/api/teacher', require('./src/routes/teacher'));
 
 // Teacher Portal Routes

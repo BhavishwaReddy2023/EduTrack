@@ -9,7 +9,9 @@ const {
   updateAssignment,
   deleteAssignment,
   getSubmissions,
-  gradeSubmission
+  gradeSubmission,
+  getStudentAssignments,
+  submitAssignment
 } = require('../controllers/assignmentController');
 
 const {
@@ -19,34 +21,42 @@ const {
   deleteDoubt
 } = require('../controllers/doubtController');
 
-// All assignment routes require teacher authentication
+// Apply authentication to all routes
 router.use(authenticate);
-router.use(requireRole('teacher'));
 
-// POST /api/assignments - Create new assignment
-router.post('/', upload.array('attachments', 5), createAssignment);
+// POST /api/assignments - Create new assignment (teacher only)
+router.post('/', requireRole('teacher'), upload.array('attachments', 5), createAssignment);
 
-// GET /api/assignments - Get all assignments for teacher
-router.get('/', getAssignments);
+// GET /api/assignments - Get assignments (role-specific)
+router.get('/', (req, res, next) => {
+  if (req.user.role === 'teacher') {
+    return getAssignments(req, res, next);
+  } else {
+    return getStudentAssignments(req, res, next);
+  }
+});
 
-// GET /api/assignments/:assignmentId - Get specific assignment
-router.get('/:assignmentId', getAssignmentById);
+// GET /api/assignments/:assignmentId - Get specific assignment (teacher only)
+router.get('/:assignmentId', requireRole('teacher'), getAssignmentById);
 
-// PUT /api/assignments/:assignmentId - Update assignment
-router.put('/:assignmentId', updateAssignment);
+// PUT /api/assignments/:assignmentId - Update assignment (teacher only)
+router.put('/:assignmentId', requireRole('teacher'), updateAssignment);
 
-// DELETE /api/assignments/:assignmentId - Delete assignment
-router.delete('/:assignmentId', deleteAssignment);
+// DELETE /api/assignments/:assignmentId - Delete assignment (teacher only)
+router.delete('/:assignmentId', requireRole('teacher'), deleteAssignment);
 
-// GET /api/assignments/:assignmentId/submissions - Get submissions for assignment
-router.get('/:assignmentId/submissions', getSubmissions);
+// GET /api/assignments/:assignmentId/submissions - Get submissions for assignment (teacher only)
+router.get('/:assignmentId/submissions', requireRole('teacher'), getSubmissions);
 
-// POST /api/assignments/submissions/:submissionId/grade - Grade a submission (changed from PUT to POST)
-router.post('/submissions/:submissionId/grade', gradeSubmission);
+// POST /api/assignments/submissions/:submissionId/grade - Grade a submission (teacher only)
+router.post('/submissions/:submissionId/grade', requireRole('teacher'), gradeSubmission);
+
+// POST /api/assignments/:assignmentId/submit - Submit assignment (students)
+router.post('/:assignmentId/submit', upload.array('attachments', 5), submitAssignment);
 
 // Doubt routes for assignments (frontend compatibility)
-// GET /api/assignments/:assignmentId/doubts - Get doubts for assignment
-router.get('/:assignmentId/doubts', getDoubts);
+// GET /api/assignments/:assignmentId/doubts - Get doubts for assignment (teacher only)
+router.get('/:assignmentId/doubts', requireRole('teacher'), getDoubts);
 
 // POST /api/assignments/:assignmentId/doubts - Create doubt for assignment
 router.post('/:assignmentId/doubts', (req, res) => {

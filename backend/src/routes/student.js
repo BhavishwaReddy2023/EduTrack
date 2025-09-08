@@ -10,7 +10,10 @@ const {
   getStudentAnnouncements,
   submitAssignment,
   getStudentDoubt,
-  createDoubt
+  createDoubt,
+  updateStreak,
+  updateStudentStats,
+  getDashboardStats
 } = require('../controllers/studentController');
 
 // All routes require authentication
@@ -36,5 +39,10 @@ router.get('/announcements', getStudentAnnouncements);
 // Doubts routes
 router.get('/doubts', getStudentDoubt);
 router.post('/doubts', createDoubt);
+
+// Stats and streak routes
+router.post('/streak', updateStreak);
+router.post('/stats/update', updateStudentStats);
+router.get('/stats/dashboard', getDashboardStats);
 
 module.exports = router;

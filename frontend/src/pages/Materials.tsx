@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiService } from '@/services/api';
 import { 
   BookOpen, 
   Search, 
@@ -84,26 +85,100 @@ const Materials: React.FC = () => {
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [uploaderFilter, setUploaderFilter] = useState('All');
+  const [downloading, setDownloading] = useState<number | null>(null);
 
-  const allMaterials = [...mockMaterials, ...uploadedFiles];
+  const allMaterials = [...mockMaterials.map(m => ({...m, uploadedBy: 'teacher'})), ...uploadedFiles.map(m => ({...m, uploadedBy: 'student'}))];
   const filteredMaterials = allMaterials.filter(material => {
     const matchesSubject = selectedFilter === 'All' || material.type === selectedFilter;
+    const matchesUploader = uploaderFilter === 'All' || material.uploadedBy === uploaderFilter;
     const matchesSearch = material.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          material.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSubject && matchesSearch;
+    return matchesSubject && matchesUploader && matchesSearch;
   });
 
-  const handleDownload = (material: any) => {
-    // Simulate download
-    const blob = new Blob(['Sample content for ' + material.title], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${material.title}.${material.type.toLowerCase()}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleDownload = async (material: any) => {
+    setDownloading(material.id);
+    try {
+      if (material.uploadedBy === 'teacher') {
+        // For teacher materials, try API download first, fallback to mock content
+        try {
+          const response = await apiService.downloadMaterialFile(material.id.toString());
+          if (response.success && response.data) {
+            const url = URL.createObjectURL(response.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${material.title}.${material.type.toLowerCase()}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Track download activity
+            await apiService.viewMaterial(material.id.toString());
+          } else {
+            throw new Error('API download failed');
+          }
+        } catch (apiError) {
+          console.warn('API download failed, using fallback content:', apiError);
+          // Fallback to mock content for teacher materials
+          const mockContent = generateMockContent(material);
+          const blob = new Blob([mockContent], { 
+            type: material.type === 'PDF' ? 'application/pdf' : 
+                  material.type === 'Video' ? 'video/mp4' : 
+                  'text/plain' 
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${material.title}.${material.type.toLowerCase()}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      } else {
+        // For student uploaded files, use mock content
+        const mockContent = generateMockContent(material);
+        const blob = new Blob([mockContent], { 
+          type: material.type === 'PDF' ? 'application/pdf' : 
+                material.type === 'Video' ? 'video/mp4' : 
+                'text/plain' 
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${material.title}.${material.type.toLowerCase()}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      alert(`📥 ${material.title} downloaded successfully!`);
+    } catch (error) {
+      alert(`❌ Failed to download ${material.title}. Please try again.`);
+      console.error('Download error:', error);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const generateMockContent = (material: any) => {
+    const materialDetails: { [key: number]: { content: string; exercises: string[] } } = {
+      1: {
+        content: `# ${material.title}\n\n## Comprehensive Study Guide\n\nThis is a detailed study material for ${material.title} in ${material.classroom}.\n\n### Key Topics:\n- Fundamental concepts and principles\n- Practical applications and examples\n- Step-by-step problem-solving methods\n- Important formulas and equations\n\n### Learning Objectives:\nBy the end of this material, you should be able to:\n1. Understand core concepts\n2. Apply knowledge to solve problems\n3. Analyze complex scenarios\n4. Synthesize information effectively\n\n### Content Overview:\nThis ${material.type} contains comprehensive information covering all essential aspects of the topic. The material is structured to provide both theoretical understanding and practical application.\n\n### Additional Resources:\n- Practice exercises with solutions\n- Reference materials and further reading\n- Interactive examples and case studies\n\nFor any questions or clarifications, please contact your instructor.\n\n---\nGenerated on: ${new Date().toLocaleDateString()}\nMaterial ID: ${material.id}\nSubject: ${material.classroom}`,
+        exercises: [
+          "Complete the practice problems at the end of each chapter",
+          "Review key concepts and create summary notes",
+          "Apply learned principles to real-world scenarios",
+          "Prepare for upcoming assessments and discussions"
+        ]
+      }
+    };
+    
+    const details = materialDetails[1]; // Use default template
+    return `${details.content}\n\n## Practice Exercises:\n${details.exercises.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}`;
   };
 
   const handleUpload = () => {
@@ -301,6 +376,28 @@ const Materials: React.FC = () => {
         </div>
       </div>
 
+      {/* Uploader Filter */}
+      <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
+        <div className="flex-1">
+          <h3 className="text-sm font-medium mb-2">Filter by Uploader</h3>
+          <div className="flex gap-2 overflow-x-auto">
+            {['All', 'teacher', 'student'].map((filter) => (
+              <Button
+                key={filter}
+                variant={uploaderFilter === filter ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setUploaderFilter(filter)}
+                className="whitespace-nowrap text-xs lg:text-sm capitalize"
+              >
+                {filter === 'teacher' ? '👨‍🏫 Teacher Materials' : 
+                 filter === 'student' ? '👨‍🎓 Student Uploads' : 
+                 '📚 All Materials'}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Materials Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {filteredMaterials.map((material) => (
@@ -315,6 +412,16 @@ const Materials: React.FC = () => {
                     <CardTitle className="text-base lg:text-lg truncate">{material.title}</CardTitle>
                     <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                       <Badge variant="secondary" className="text-xs w-fit">{material.classroom}</Badge>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs w-fit ${
+                          material.uploadedBy === 'teacher' 
+                            ? 'border-blue-200 text-blue-700 bg-blue-50' 
+                            : 'border-green-200 text-green-700 bg-green-50'
+                        }`}
+                      >
+                        {material.uploadedBy === 'teacher' ? '👨‍🏫 Teacher' : '👨‍🎓 Student'}
+                      </Badge>
                       <span className="text-xs text-muted-foreground">{material.size}</span>
                     </CardDescription>
                   </div>
@@ -341,9 +448,19 @@ const Materials: React.FC = () => {
                   <Eye className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
                   View
                 </Button>
-                <Button size="sm" variant="outline" className="text-xs lg:text-sm">
-                  <Download className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
-                  Download
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="text-xs lg:text-sm"
+                  onClick={() => handleDownload(material)}
+                  disabled={downloading === material.id}
+                >
+                  {downloading === material.id ? (
+                    <Loader2 className="h-3 w-3 lg:h-4 lg:w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Download className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
+                  )}
+                  {downloading === material.id ? 'Downloading...' : 'Download'}
                 </Button>
                 <Button 
                   size="sm" 

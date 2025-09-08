@@ -300,11 +300,17 @@ class ApiService {
     return this.request(`/api/assignments/${assignmentId}/submissions`);
   }
 
-  async submitAssignment(assignmentId: number, submission: { content: string; submissionType: string }): Promise<ApiResponse<any>> {
-    return this.request(`/api/student/assignments/${assignmentId}/submit`, {
+  async submitAssignment(assignmentId: string, formData: FormData): Promise<ApiResponse<any>> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${API_BASE_URL}/api/assignments/${assignmentId}/submit`, {
       method: 'POST',
-      body: JSON.stringify(submission)
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+      credentials: 'include',
     });
+    return this.handleResponse(response);
   }
 
   async gradeSubmission(submissionId: string, gradeData: { score: number; feedback?: string; status?: string }): Promise<ApiResponse<any>> {
@@ -357,8 +363,12 @@ class ApiService {
     return this.request(`/api/classrooms/${classroomId}/assignments`);
   }
 
-  async getClassroomMaterials(classroomId: string): Promise<ApiResponse<any[]>> {
-    return this.request(`/api/classrooms/${classroomId}/materials`);
+  async getClassroomMaterials(classroomId: string, filters?: { uploadedBy?: string }): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (filters?.uploadedBy) params.append('uploadedBy', filters.uploadedBy);
+    
+    const queryString = params.toString();
+    return this.request(`/api/classrooms/${classroomId}/materials${queryString ? '?' + queryString : ''}`);
   }
 
   async getClassroomAnalytics(classroomId: string): Promise<ApiResponse<any>> {
@@ -474,6 +484,112 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ materialId }),
     });
+  }
+
+  // Student-specific API methods
+  async downloadMaterial(materialId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/materials/${materialId}/download`, {
+      method: 'POST',
+    });
+  }
+
+  async viewMaterial(materialId: string, duration?: number): Promise<ApiResponse<any>> {
+    return this.request(`/api/materials/${materialId}/view`, {
+      method: 'POST',
+      body: JSON.stringify({ duration: duration || 0 }),
+    });
+  }
+
+  async updateStreak(): Promise<ApiResponse<any>> {
+    return this.request('/api/student/streak', {
+      method: 'POST',
+    });
+  }
+
+  async updateStudentStats(): Promise<ApiResponse<any>> {
+    return this.request('/api/student/stats/update', {
+      method: 'POST',
+    });
+  }
+
+  async getStudentDashboardStats(): Promise<ApiResponse<any>> {
+    return this.request('/api/student/stats/dashboard');
+  }
+
+  async getStudentMaterials(filters?: { type?: string; subject?: string; classroom?: string }): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.subject) params.append('subject', filters.subject);
+    if (filters?.classroom) params.append('classroom', filters.classroom);
+    
+    const queryString = params.toString();
+    return this.request(`/api/materials${queryString ? '?' + queryString : ''}`);
+  }
+
+  async getStudentAssignments(filters?: { status?: string; subject?: string }): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.subject) params.append('subject', filters.subject);
+    
+    const queryString = params.toString();
+    return this.request(`/api/assignments${queryString ? '?' + queryString : ''}`);
+  }
+
+  // Classroom management API methods
+  async joinClassroom(pin: string): Promise<ApiResponse<any>> {
+    return this.request('/api/student/classrooms/join', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  }
+
+  async generateClassroomPin(classroomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}/generate-pin`, {
+      method: 'POST',
+    });
+  }
+
+  async validateClassroomPin(pin: string): Promise<ApiResponse<any>> {
+    return this.request('/api/student/classrooms/validate-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  }
+
+  async getSubmissionsBySubject(classroomId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/classrooms/${classroomId}/submissions/by-subject`);
+  }
+
+  async downloadMaterialFile(materialId: string): Promise<ApiResponse<any>> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${API_BASE_URL}/api/materials/${materialId}/download`, {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      return { success: true, data: blob };
+    } else {
+      const error = await response.text();
+      return { success: false, error };
+    }
+  }
+
+  async getStudentClassrooms(): Promise<ApiResponse<any>> {
+    return this.request('/api/student/classrooms');
+  }
+
+  async getTeacherSubmissions(filters?: { subject?: string; status?: string }): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (filters?.subject) params.append('subject', filters.subject);
+    if (filters?.status) params.append('status', filters.status);
+    
+    const queryString = params.toString();
+    return this.request(`/api/teacher/submissions${queryString ? '?' + queryString : ''}`);
   }
 }
 

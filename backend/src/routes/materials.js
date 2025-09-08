@@ -8,29 +8,39 @@ const {
   getMaterialById,
   updateMaterial,
   deleteMaterial,
-  trackDownload
+  trackDownload,
+  getStudentMaterials,
+  viewMaterial
 } = require('../controllers/materialController');
 
-// All material routes require teacher authentication
+// Apply authentication to all routes
 router.use(authenticate);
-router.use(requireRole('teacher'));
 
-// POST /api/materials/upload - Upload new material
-router.post('/upload', upload.single('file'), uploadMaterial);
+// POST /api/materials/upload - Upload new material (teacher only)
+router.post('/upload', requireRole('teacher'), upload.single('file'), uploadMaterial);
 
-// GET /api/materials - Get all materials for teacher
-router.get('/', getMaterials);
+// GET /api/materials - Get materials (role-specific)
+router.get('/', (req, res, next) => {
+  if (req.user.role === 'teacher') {
+    return getMaterials(req, res, next);
+  } else {
+    return getStudentMaterials(req, res, next);
+  }
+});
 
-// GET /api/materials/:materialId - Get specific material
-router.get('/:materialId', getMaterialById);
+// GET /api/materials/:materialId - Get specific material (teacher only)
+router.get('/:materialId', requireRole('teacher'), getMaterialById);
 
-// PUT /api/materials/:materialId - Update material
-router.put('/:materialId', updateMaterial);
+// PUT /api/materials/:materialId - Update material (teacher only)
+router.put('/:materialId', requireRole('teacher'), updateMaterial);
 
-// DELETE /api/materials/:materialId - Delete material
-router.delete('/:materialId', deleteMaterial);
+// DELETE /api/materials/:materialId - Delete material (teacher only)
+router.delete('/:materialId', requireRole('teacher'), deleteMaterial);
 
-// POST /api/materials/:materialId/download - Track download
+// POST /api/materials/:materialId/download - Track download (students)
 router.post('/:materialId/download', trackDownload);
+
+// POST /api/materials/:materialId/view - Track material view (students)
+router.post('/:materialId/view', viewMaterial);
 
 module.exports = router;

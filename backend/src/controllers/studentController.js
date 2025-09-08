@@ -278,6 +278,163 @@ const createDoubt = async (req, res) => {
   }
 };
 
+// Update streak
+const updateStreak = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+    const student = await Student.findById(studentId);
+    
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    student.updateStreak();
+    await student.save();
+
+    res.json({
+      success: true,
+      message: 'Streak updated successfully',
+      data: {
+        streak: student.stats.streak,
+        longestStreak: student.stats.longestStreak
+      }
+    });
+  } catch (error) {
+    console.error('Update streak error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update streak'
+    });
+  }
+};
+
+// Update student stats
+const updateStudentStats = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+    
+    // Get all student's submissions
+    const submissions = await Submission.find({ student: studentId })
+      .populate('assignment', 'totalPoints subject');
+    
+    // Calculate stats
+    const totalAssignments = submissions.length;
+    const completedAssignments = submissions.filter(s => s.status === 'graded' || s.status === 'submitted').length;
+    const gradedSubmissions = submissions.filter(s => s.score !== null && s.score !== undefined);
+    
+    let averageScore = 0;
+    let totalPoints = 0;
+    
+    if (gradedSubmissions.length > 0) {
+      const totalScorePercentage = gradedSubmissions.reduce((sum, sub) => {
+        const assignment = sub.assignment;
+        if (assignment && assignment.totalPoints > 0) {
+          return sum + (sub.score / assignment.totalPoints) * 100;
+        }
+        return sum;
+      }, 0);
+      averageScore = Math.round(totalScorePercentage / gradedSubmissions.length);
+      totalPoints = gradedSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    }
+    
+    // Calculate rank (simplified - based on average score and total points)
+    const allStudents = await Student.find({}, 'stats').lean();
+    const studentRanking = allStudents
+      .map(s => ({
+        id: s._id,
+        score: s.stats.averageScore || 0,
+        points: s.stats.totalPoints || 0
+      }))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.points - a.points;
+      });
+    
+    const rank = studentRanking.findIndex(s => s.id.toString() === studentId.toString()) + 1;
+    
+    // Update badges based on achievements
+    const badges = [];
+    if (averageScore >= 90) badges.push('achiever');
+    if (completedAssignments >= 5) badges.push('dedicated');
+    if (req.user.stats.streak >= 7) badges.push('consistent');
+    
+    // Update student stats
+    const updatedStudent = await Student.findByIdAndUpdate(
+      studentId,
+      {
+        $set: {
+          'stats.totalAssignments': totalAssignments,
+          'stats.completedAssignments': completedAssignments,
+          'stats.pendingAssignments': Math.max(0, totalAssignments - completedAssignments),
+          'stats.averageScore': averageScore,
+          'stats.totalPoints': totalPoints,
+          'stats.rank': rank,
+          badges: badges
+        }
+      },
+      { new: true }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Student stats updated successfully',
+      data: updatedStudent.stats
+    });
+  } catch (error) {
+    console.error('Update student stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update student stats'
+    });
+  }
+};
+
+// Get dashboard stats
+const getDashboardStats = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+    const student = await Student.findById(studentId).populate('submissions');
+    
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+    
+    // Update streak on dashboard access
+    student.updateStreak();
+    await student.save();
+    
+    // Get recent assignments
+    const recentAssignments = await Assignment.find({
+      classroom: { $in: student.classrooms },
+      status: 'active'
+    })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate('teacher', 'name');
+    
+    res.json({
+      success: true,
+      data: {
+        stats: student.stats,
+        badges: student.badges,
+        recentAssignments
+      }
+    });
+  } catch (error) {
+    console.error('Get dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard stats'
+    });
+  }
+};
+
 // Helper function to get badge descriptions
 const getBadgeDescription = (badge) => {
   const descriptions = {
@@ -301,5 +458,8 @@ module.exports = {
   getStudentAnnouncements,
   submitAssignment,
   getStudentDoubt,
-  createDoubt
+  createDoubt,
+  updateStreak,
+  updateStudentStats,
+  getDashboardStats
 };

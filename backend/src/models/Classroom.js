@@ -41,6 +41,19 @@ const classroomSchema = new mongoose.Schema({
     maxlength: 8,
     index: true
   },
+  
+  // PIN System for classroom joining
+  pin: {
+    type: String,
+    unique: true,
+    sparse: true,
+    uppercase: true,
+    length: 8,
+    index: true
+  },
+  pinGeneratedAt: {
+    type: Date
+  },
   isPublic: {
     type: Boolean,
     default: false

@@ -95,15 +95,15 @@ const AIAssistant: React.FC = () => {
     }
   };
 
-  const generateMockResponse = (userInput: string): string => {
-    const responses = [
-      "That's a great question! Let me break it down for you step by step...",
-      "I understand what you're asking. Here's how I would approach this problem...",
-      "Excellent topic to explore! Based on the curriculum, I'd recommend focusing on...",
-      "I can help you with that! Let me provide some key insights and examples...",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
+  // const generateMockResponse = (userInput: string): string => {
+  //   const responses = [
+  //     "That's a great question! Let me break it down for you step by step...",
+  //     "I understand what you're asking. Here's how I would approach this problem...",
+  //     "Excellent topic to explore! Based on the curriculum, I'd recommend focusing on...",
+  //     "I can help you with that! Let me provide some key insights and examples...",
+  //   ];
+  //   return responses[Math.floor(Math.random() * responses.length)];
+  // };
 
   const handleGenerateQuiz = async () => {
     if (!quizTopic.trim() || quizLoading) return;

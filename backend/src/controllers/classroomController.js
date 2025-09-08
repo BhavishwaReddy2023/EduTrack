@@ -16,12 +16,12 @@ const createClassroom = async (req, res) => {
     };
 
     let code = generateCode();
-    let codeExists = await Classroom.findOne({ code });
+    let codeExists = await Classroom.findOne({ inviteCode: code });
     
     // Ensure code is unique
     while (codeExists) {
       code = generateCode();
-      codeExists = await Classroom.findOne({ code });
+      codeExists = await Classroom.findOne({ inviteCode: code });
     }
 
     const classroom = new Classroom({
@@ -30,7 +30,7 @@ const createClassroom = async (req, res) => {
       subject,
       grade,
       teacher: teacherId,
-      code,
+      inviteCode: code,
       students: [],
       settings: {
         allowStudentQuestions: true,
@@ -344,7 +344,7 @@ const generateInviteCode = async (req, res) => {
     res.json({
       success: true,
       data: {
-        inviteCode: classroom.code,
+        inviteCode: classroom.inviteCode,
         classroomName: classroom.name,
         subject: classroom.subject
       }

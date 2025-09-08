@@ -14,8 +14,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Plus, Loader2, Calendar, BookOpen } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ClipboardList, Plus, Loader2, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface CreateAssignmentModalProps {
   children: React.ReactNode;
@@ -33,6 +37,7 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
   const isCreating = externalCreating || creating;
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [newAssignment, setNewAssignment] = useState({
     title: '',
     subject: '',
@@ -104,6 +109,7 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
       formData.append('points', newAssignment.points.toString());
       formData.append('difficulty', newAssignment.difficulty);
       formData.append('allowLateSubmissions', newAssignment.allowLateSubmissions.toString());
+      formData.append('type', 'assignment'); // Required field for Assignment model
       
       if (newAssignment.timeLimit) {
         formData.append('timeLimit', newAssignment.timeLimit);
@@ -244,23 +250,82 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Assignment Settings
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dueDate">Due Date *</Label>
+              {/* Due Date Section - Full Width */}
+              <div className="space-y-2">
+                <Label>Due Date & Time *</Label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "flex-1 justify-start text-left font-normal min-w-[200px]",
+                          !newAssignment.dueDate && "text-muted-foreground"
+                        )}
+                        disabled={creating}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newAssignment.dueDate ? (
+                          format(new Date(newAssignment.dueDate), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[1000]" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newAssignment.dueDate ? new Date(newAssignment.dueDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            // Keep existing time if it exists, otherwise set to end of day
+                            const existingDate = newAssignment.dueDate ? new Date(newAssignment.dueDate) : new Date();
+                            const newDate = new Date(date);
+                            newDate.setHours(existingDate.getHours() || 23);
+                            newDate.setMinutes(existingDate.getMinutes() || 59);
+                            setNewAssignment(prev => ({ 
+                              ...prev, 
+                              dueDate: newDate.toISOString().slice(0, 16) 
+                            }));
+                            setCalendarOpen(false);
+                          }
+                        }}
+                        disabled={(date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <Input
-                    id="dueDate"
-                    type="datetime-local"
-                    value={newAssignment.dueDate}
-                    onChange={(e) => setNewAssignment(prev => ({ ...prev, dueDate: e.target.value }))}
+                    type="time"
+                    className="w-full sm:w-32"
+                    value={newAssignment.dueDate ? new Date(newAssignment.dueDate).toTimeString().slice(0, 5) : "23:59"}
+                    onChange={(e) => {
+                      const [hours, minutes] = e.target.value.split(':');
+                      const currentDate = newAssignment.dueDate ? new Date(newAssignment.dueDate) : new Date();
+                      currentDate.setHours(parseInt(hours));
+                      currentDate.setMinutes(parseInt(minutes));
+                      setNewAssignment(prev => ({ 
+                        ...prev, 
+                        dueDate: currentDate.toISOString().slice(0, 16) 
+                      }));
+                    }}
                     disabled={creating}
                     required
                   />
                 </div>
+              </div>
+
+              {/* Other Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="points">Points</Label>
                   <Input
@@ -269,7 +334,10 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
                     min="1"
                     max="1000"
                     value={newAssignment.points}
-                    onChange={(e) => setNewAssignment(prev => ({ ...prev, points: parseInt(e.target.value) || 100 }))}
+                    onChange={(e) => setNewAssignment(prev => ({ 
+                      ...prev, 
+                      points: parseInt(e.target.value) || 100 
+                    }))}
                     disabled={creating}
                   />
                 </div>
@@ -277,7 +345,10 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
                   <Label htmlFor="difficulty">Difficulty</Label>
                   <Select
                     value={newAssignment.difficulty}
-                    onValueChange={(value) => setNewAssignment(prev => ({ ...prev, difficulty: value }))}
+                    onValueChange={(value) => setNewAssignment(prev => ({ 
+                      ...prev, 
+                      difficulty: value 
+                    }))}
                     disabled={creating}
                   >
                     <SelectTrigger>
@@ -300,7 +371,10 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
                   min="1"
                   placeholder="Leave empty for no time limit"
                   value={newAssignment.timeLimit}
-                  onChange={(e) => setNewAssignment(prev => ({ ...prev, timeLimit: e.target.value }))}
+                  onChange={(e) => setNewAssignment(prev => ({ 
+                    ...prev, 
+                    timeLimit: e.target.value 
+                  }))}
                   disabled={creating}
                 />
               </div>
@@ -308,7 +382,7 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
           </Card>
 
           {/* Form Actions */}
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end pt-4">
             <Button
               type="button"
               variant="outline"

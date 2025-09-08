@@ -38,7 +38,8 @@ const classroomSchema = new mongoose.Schema({
     unique: true,
     uppercase: true,
     minlength: 6,
-    maxlength: 8
+    maxlength: 8,
+    index: true
   },
   isPublic: {
     type: Boolean,
@@ -111,7 +112,6 @@ const classroomSchema = new mongoose.Schema({
 
 // Indexes for performance
 classroomSchema.index({ teacher: 1 });
-classroomSchema.index({ inviteCode: 1 });
 classroomSchema.index({ subject: 1, grade: 1 });
 classroomSchema.index({ 'students.studentId': 1 });
 

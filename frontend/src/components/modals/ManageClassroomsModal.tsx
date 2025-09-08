@@ -39,7 +39,8 @@ const ManageClassroomsModal: React.FC<ManageClassroomsModalProps> = ({ children 
   const [newClassroom, setNewClassroom] = useState({
     name: '',
     subject: '',
-    description: ''
+    description: '',
+    grade: ''
   });
   const { toast } = useToast();
 
@@ -70,10 +71,10 @@ const ManageClassroomsModal: React.FC<ManageClassroomsModalProps> = ({ children 
   const handleCreateClassroom = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newClassroom.name.trim() || !newClassroom.subject.trim()) {
+    if (!newClassroom.name.trim() || !newClassroom.subject.trim() || !newClassroom.grade.trim()) {
       toast({
         title: "Missing information",
-        description: "Please fill in the classroom name and subject",
+        description: "Please fill in the classroom name, subject, and grade",
         variant: "destructive"
       });
       return;
@@ -88,7 +89,7 @@ const ManageClassroomsModal: React.FC<ManageClassroomsModalProps> = ({ children 
           description: `${newClassroom.name} has been created and is ready for students`,
         });
         
-        setNewClassroom({ name: '', subject: '', description: '' });
+        setNewClassroom({ name: '', subject: '', description: '', grade: '' });
         setShowCreateForm(false);
         fetchClassrooms(); // Refresh the list
       } else {
@@ -197,6 +198,15 @@ const ManageClassroomsModal: React.FC<ManageClassroomsModalProps> = ({ children 
                   </div>
                   <div>
                     <Input
+                      placeholder="Grade (e.g., Grade 10, Class 12, Year 1)"
+                      value={newClassroom.grade}
+                      onChange={(e) => setNewClassroom(prev => ({ ...prev, grade: e.target.value }))}
+                      disabled={creating}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Input
                       placeholder="Description (optional)"
                       value={newClassroom.description}
                       onChange={(e) => setNewClassroom(prev => ({ ...prev, description: e.target.value }))}
@@ -206,7 +216,7 @@ const ManageClassroomsModal: React.FC<ManageClassroomsModalProps> = ({ children 
                   <div className="flex gap-2">
                     <Button
                       type="submit"
-                      disabled={creating || !newClassroom.name.trim() || !newClassroom.subject.trim()}
+                      disabled={creating || !newClassroom.name.trim() || !newClassroom.subject.trim() || !newClassroom.grade.trim()}
                       className="bg-gradient-secondary"
                     >
                       {creating ? (

@@ -48,15 +48,16 @@ const createAssignment = async (req, res) => {
     const assignment = new Assignment({
       title,
       description,
-      subject,
+      subject, // Required field
+      grade: classroom.grade, // Get grade from classroom
+      type: req.body.type || 'assignment', // Required field
       teacher: teacherId,
       classroom: classroomId,
       dueDate: new Date(dueDate),
-      points: points || 100,
-      difficulty: difficulty || 'medium',
+      totalPoints: points || 100,
       questions: questions || [],
-      timeLimit: timeLimit || null,
-      allowLateSubmissions: allowLateSubmissions !== false,
+      timeLimit: timeLimit ? parseInt(timeLimit) : null,
+      lateSubmissionAllowed: allowLateSubmissions !== false,
       attachments,
       status: 'active'
     });

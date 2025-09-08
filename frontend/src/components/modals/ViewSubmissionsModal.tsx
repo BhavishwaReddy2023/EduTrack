@@ -87,7 +87,9 @@ const ViewSubmissionsModal: React.FC<ViewSubmissionsModalProps> = ({
     try {
       const response = await apiService.getSubmissions(assignment._id);
       if (response.success) {
-        setSubmissions(response.data?.submissions || response.data || []);
+        // Handle both possible response structures: nested submissions or direct array
+        const submissionsData = response.data?.submissions || response.data || [];
+        setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
       } else {
         toast({
           title: "Failed to load submissions",

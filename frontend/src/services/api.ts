@@ -296,7 +296,7 @@ class ApiService {
     });
   }
 
-  async getSubmissions(assignmentId: string): Promise<ApiResponse<any[]>> {
+  async getSubmissions(assignmentId: string): Promise<ApiResponse<any>> {
     return this.request(`/api/assignments/${assignmentId}/submissions`);
   }
 

@@ -307,10 +307,10 @@ class ApiService {
     });
   }
 
-  async gradeSubmission(submissionId: string, grade: number, feedback?: string): Promise<ApiResponse<any>> {
+  async gradeSubmission(submissionId: string, gradeData: { score: number; feedback?: string; status?: string }): Promise<ApiResponse<any>> {
     return this.request(`/api/assignments/submissions/${submissionId}/grade`, {
       method: 'POST',
-      body: JSON.stringify({ grade, feedback })
+      body: JSON.stringify(gradeData)
     });
   }
 
@@ -376,11 +376,15 @@ class ApiService {
     return this.request(`/api/assignments/${assignmentId}/doubts`);
   }
 
-  async createDoubt(assignmentId: string, question: string): Promise<ApiResponse<any>> {
+  async askDoubt(assignmentId: string, doubtData: { question: string; isPublic?: boolean }): Promise<ApiResponse<any>> {
     return this.request(`/api/assignments/${assignmentId}/doubts`, {
       method: 'POST',
-      body: JSON.stringify({ question })
+      body: JSON.stringify(doubtData)
     });
+  }
+
+  async createDoubt(assignmentId: string, question: string): Promise<ApiResponse<any>> {
+    return this.askDoubt(assignmentId, { question, isPublic: true });
   }
 
   async answerDoubt(doubtId: string, answer: string): Promise<ApiResponse<any>> {
@@ -400,6 +404,13 @@ class ApiService {
   async deleteDoubt(doubtId: string): Promise<ApiResponse<any>> {
     return this.request(`/api/doubts/${doubtId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async voteDoubt(doubtId: string, voteType: 'up' | 'down'): Promise<ApiResponse<any>> {
+    return this.request(`/api/doubts/${doubtId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ voteType })
     });
   }
 

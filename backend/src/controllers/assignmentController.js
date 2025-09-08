@@ -129,11 +129,24 @@ const getAssignments = async (req, res) => {
       .lean();
 
     // Add submission statistics
-    const assignmentsWithStats = assignments.map(assignment => ({
-      ...assignment,
-      totalStudents: assignment.classroom?.students?.length || 0,
-      submittedCount: assignment.submissions?.length || 0,
-      pendingCount: Math.max(0, (assignment.classroom?.students?.length || 0) - (assignment.submissions?.length || 0))
+    const assignmentsWithStats = await Promise.all(assignments.map(async assignment => {
+      const totalStudents = assignment.classroom?.students?.length || 0;
+      const submittedCount = assignment.submissions?.length || 0;
+      const pendingCount = Math.max(0, totalStudents - submittedCount);
+      
+      // Calculate overdue submissions
+      const now = new Date();
+      const isOverdue = new Date(assignment.dueDate) < now;
+      const overdueCount = isOverdue ? pendingCount : 0;
+      
+      return {
+        ...assignment,
+        totalStudents,
+        submittedCount,
+        pendingCount,
+        overdueCount,
+        isOverdue
+      };
     }));
 
     const total = await Assignment.countDocuments(filter);

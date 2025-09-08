@@ -14,15 +14,24 @@ const register = async (req, res) => {
 
     // Validate input
     if (!username || !email || !password || !role || !name) {
-      return res.status(400).json({ error: 'Username, email, password, role, and name are required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Username, email, password, role, and name are required' 
+      });
     }
 
     if (!['student', 'teacher'].includes(role)) {
-      return res.status(400).json({ error: 'Role must be either student or teacher' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Role must be either student or teacher' 
+      });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Password must be at least 6 characters long' 
+      });
     }
 
     // Check if user already exists in both collections
@@ -31,6 +40,7 @@ const register = async (req, res) => {
 
     if (existingTeacher || existingStudent) {
       return res.status(400).json({ 
+        success: false,
         error: 'User with this email or username already exists' 
       });
     }
@@ -55,13 +65,19 @@ const register = async (req, res) => {
     req.session.userRole = role;
 
     res.status(201).json({
+      success: true,
       message: `${role.charAt(0).toUpperCase() + role.slice(1)} registered successfully`,
-      user: { ...user.toJSON(), role },
-      token
+      data: {
+        user: { ...user.toJSON(), role },
+        token
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 };
 
@@ -72,11 +88,17 @@ const login = async (req, res) => {
 
     // Validate input
     if (!email || !password || !role) {
-      return res.status(400).json({ error: 'Email, password, and role are required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email, password, and role are required' 
+      });
     }
 
     if (!['student', 'teacher'].includes(role)) {
-      return res.status(400).json({ error: 'Role must be either student or teacher' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Role must be either student or teacher' 
+      });
     }
 
     // Find user by email and role
@@ -88,13 +110,19 @@ const login = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'User not Found. Please Register.' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'User not Found. Please Register.' 
+      });
     }
 
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid credentials' 
+      });
     }
 
     // Generate JWT token
@@ -108,13 +136,19 @@ const login = async (req, res) => {
     user.password = undefined;
 
     res.json({
+      success: true,
       message: 'Login successful',
-      user: { ...user.toJSON(), role },
-      token
+      data: {
+        user: { ...user.toJSON(), role },
+        token
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 };
 
@@ -125,15 +159,24 @@ const logout = async (req, res) => {
     req.session.destroy((err) => {
       if (err) {
         console.error('Session destruction error:', err);
-        return res.status(500).json({ error: 'Could not log out' });
+        return res.status(500).json({ 
+          success: false,
+          error: 'Could not log out' 
+        });
       }
       
       res.clearCookie('connect.sid'); // Clear session cookie
-      res.json({ message: 'Logout successful' });
+      res.json({ 
+        success: true,
+        message: 'Logout successful' 
+      });
     });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 };
 
@@ -141,12 +184,18 @@ const logout = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     res.json({
-      user: req.user,
-      authMethod: req.authMethod
+      success: true,
+      data: {
+        user: req.user,
+        authMethod: req.authMethod
+      }
     });
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 };
 

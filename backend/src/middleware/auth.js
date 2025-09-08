@@ -18,21 +18,30 @@ const verifyJWT = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({ error: 'Access denied. No token provided.' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Access denied. No token provided.' 
+      });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await findUserByIdAndRole(decoded.userId, decoded.role);
     
     if (!user) {
-      return res.status(401).json({ error: 'Invalid token. User not found.' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid token. User not found.' 
+      });
     }
 
     req.user = { ...user.toJSON(), role: decoded.role };
     req.userRole = decoded.role;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token.' });
+    res.status(401).json({ 
+      success: false,
+      error: 'Invalid token.' 
+    });
   }
 };
 
@@ -50,7 +59,10 @@ const verifySession = async (req, res, next) => {
       // Session user lookup failed
     }
   }
-  return res.status(401).json({ error: 'Access denied. No valid session.' });
+  return res.status(401).json({ 
+    success: false,
+    error: 'Access denied. No valid session.' 
+  });
 };
 
 // Middleware that accepts either JWT or session authentication
@@ -90,7 +102,10 @@ const authenticate = async (req, res, next) => {
   }
 
   // Both authentication methods failed
-  return res.status(401).json({ error: 'Access denied. Please login.' });
+  return res.status(401).json({ 
+    success: false,
+    error: 'Access denied. Please login.' 
+  });
 };
 
 // Middleware to check if user has required role
@@ -98,6 +113,7 @@ const requireRole = (requiredRole) => {
   return (req, res, next) => {
     if (!req.userRole || req.userRole !== requiredRole) {
       return res.status(403).json({ 
+        success: false,
         error: `Access denied. ${requiredRole} role required.` 
       });
     }

@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import CreateAssignmentModal from '@/components/modals/CreateAssignmentModal';
+import ViewSubmissionsModal from '@/components/modals/ViewSubmissionsModal';
+import DoubtSectionModal from '@/components/modals/DoubtSectionModal';
 
 // Helper function from your new code for student portal styling
 const getStatusColor = (status: string) => {
@@ -74,6 +76,11 @@ const Assignments: React.FC = () => {
   const [answeringDoubt, setAnsweringDoubt] = useState(false);
   const [gradeInput, setGradeInput] = useState('');
   const [doubtAnswer, setDoubtAnswer] = useState('');
+
+  // Modal states
+  const [viewSubmissionsModal, setViewSubmissionsModal] = useState(false);
+  const [doubtSectionModal, setDoubtSectionModal] = useState(false);
+  const [modalAssignment, setModalAssignment] = useState<any>(null);
 
   // States for Student Portal mock functionality
   const [submissionText, setSubmissionText] = useState('');
@@ -554,7 +561,7 @@ const Assignments: React.FC = () => {
   const handleScoreAssignment = async (submissionId: number, score: number) => {
     setGrading(true);
     try {
-      const response = await apiService.gradeSubmission(submissionId.toString(), score);
+      const response = await apiService.gradeSubmission(submissionId.toString(), { score });
       if (response.success) {
         toast({ title: "Assignment graded successfully" });
         const refreshResponse = await apiService.getAssignments();
@@ -619,35 +626,189 @@ const Assignments: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        {/* Other teacher stat cards... */}
+        
+        <Card className="shadow-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-success/10">
+                <CheckCircle className="h-4 w-4 text-success" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{assignments.reduce((sum, a) => sum + (a.submittedCount || 0), 0)}</p>
+                <p className="text-xs text-muted-foreground">Submissions</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-warning/10">
+                <Clock className="h-4 w-4 text-warning" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{assignments.reduce((sum, a) => sum + (a.pendingCount || 0), 0)}</p>
+                <p className="text-xs text-muted-foreground">Pending</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{assignments.reduce((sum, a) => sum + (a.overdueCount || 0), 0)}</p>
+                <p className="text-xs text-muted-foreground">Overdue</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="space-y-4">
         {assignments.length === 0 ? (
           <div className="text-center py-12">
-            <p>No assignments found. Create one to get started.</p>
+            <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">No assignments found. Create one to get started.</p>
+            <CreateAssignmentModal onAssignmentCreated={handleAssignmentCreated} isCreating={creating}>
+              <Button className="bg-gradient-primary">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Assignment
+              </Button>
+            </CreateAssignmentModal>
           </div>
         ) : (
-          assignments.map((assignment) => (
-          <Card key={assignment.id} className="shadow-card">
-            {/* Teacher Assignment Card Layout... */}
-             <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-xl">{assignment.title}</CardTitle>
-                  <CardDescription>{assignment.subject} • Due: {new Date(assignment.dueDate).toLocaleDateString()}</CardDescription>
-                </div>
-                <Badge>{assignment.status}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-               {/* Teacher-specific details and buttons like "View Submissions" etc. */}
-               <p>{assignment.description}</p>
-            </CardContent>
-          </Card>
-          ))
+          assignments.map((assignment) => {
+            const totalStudents = assignment.totalStudents || 0;
+            const submittedCount = assignment.submittedCount || 0;
+            const pendingCount = assignment.pendingCount || 0;
+            const overdueCount = assignment.overdueCount || 0;
+            const submissionProgress = totalStudents > 0 ? (submittedCount / totalStudents) * 100 : 0;
+            
+            return (
+              <Card key={assignment._id} className="shadow-card hover:shadow-elevated transition-all duration-200">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl mb-1">{assignment.title}</CardTitle>
+                      <CardDescription className="flex items-center gap-2">
+                        <span>{assignment.subject}</span>
+                        <span>•</span>
+                        <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
+                      </CardDescription>
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{assignment.description}</p>
+                    </div>
+                    <Badge 
+                      variant={assignment.isOverdue ? "destructive" : assignment.status === 'active' ? "default" : "secondary"}
+                      className={assignment.isOverdue ? "bg-destructive text-destructive-foreground" : ""}
+                    >
+                      {assignment.isOverdue ? 'overdue' : assignment.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  {/* Statistics Row */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <div className="text-lg font-bold text-primary">{totalStudents}</div>
+                      <div className="text-xs text-muted-foreground">Total Students</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-success/5 border border-success/10">
+                      <div className="text-lg font-bold text-success">{submittedCount}</div>
+                      <div className="text-xs text-muted-foreground">Submitted</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-warning/5 border border-warning/10">
+                      <div className="text-lg font-bold text-warning">{pendingCount}</div>
+                      <div className="text-xs text-muted-foreground">Pending</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                      <div className="text-lg font-bold text-destructive">{overdueCount}</div>
+                      <div className="text-xs text-muted-foreground">Overdue</div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Submission Progress</span>
+                      <span className="font-medium">{Math.round(submissionProgress)}%</span>
+                    </div>
+                    <Progress value={submissionProgress} className="h-2" />
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      size="sm" 
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => {
+                        setModalAssignment(assignment);
+                        setViewSubmissionsModal(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Submissions ({submittedCount})
+                    </Button>
+                    
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 border-green-200 text-green-700 hover:bg-green-50"
+                      disabled={submittedCount === 0}
+                      onClick={() => {
+                        // Handle grade all
+                        toast({
+                          title: "Grade All",
+                          description: `Opening grading interface for ${assignment.title}`,
+                        });
+                      }}
+                    >
+                      <GraduationCap className="h-4 w-4 mr-1" />
+                      Grade All ({submittedCount})
+                    </Button>
+                    
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        setModalAssignment(assignment);
+                        setDoubtSectionModal(true);
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
+      
+      {/* Modals */}
+      <ViewSubmissionsModal
+        isOpen={viewSubmissionsModal}
+        onClose={() => {
+          setViewSubmissionsModal(false);
+          setModalAssignment(null);
+        }}
+        assignment={modalAssignment}
+      />
+      
+      <DoubtSectionModal
+        isOpen={doubtSectionModal}
+        onClose={() => {
+          setDoubtSectionModal(false);
+          setModalAssignment(null);
+        }}
+        assignment={modalAssignment}
+      />
     </div>
   );
 };

@@ -111,8 +111,15 @@ const CreateAssignmentModal: React.FC<CreateAssignmentModalProps> = ({
       formData.append('allowLateSubmissions', newAssignment.allowLateSubmissions.toString());
       formData.append('type', 'assignment'); // Required field for Assignment model
       
+      // Add required fields that backend expects
       if (newAssignment.timeLimit) {
         formData.append('timeLimit', newAssignment.timeLimit);
+      }
+      
+      // Log the form data for debugging
+      console.log('Assignment form data:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
       }
 
       const response = await apiService.createAssignment(formData);

@@ -25,6 +25,38 @@ router.get('/', getClassrooms);
 // GET /api/classrooms/:classroomId - Get specific classroom
 router.get('/:classroomId', getClassroomById);
 
+// GET /api/classrooms/:classroomId/students - Get classroom students
+router.get('/:classroomId/students', (req, res) => {
+  // Return empty array for now - students will be populated from classroom data
+  res.json({ success: true, data: [] });
+});
+
+// GET /api/classrooms/:classroomId/assignments - Get classroom assignments
+router.get('/:classroomId/assignments', (req, res) => {
+  // Return empty array for now - assignments will be populated from classroom data
+  res.json({ success: true, data: [] });
+});
+
+// GET /api/classrooms/:classroomId/materials - Get classroom materials
+router.get('/:classroomId/materials', (req, res) => {
+  // Return empty array for now - materials will be populated from classroom data
+  res.json({ success: true, data: [] });
+});
+
+// GET /api/classrooms/:classroomId/analytics - Get classroom analytics
+router.get('/:classroomId/analytics', (req, res) => {
+  // Return basic analytics structure
+  res.json({ 
+    success: true, 
+    data: {
+      totalStudents: 0,
+      totalAssignments: 0,
+      averageScore: 0,
+      completionRate: 0
+    }
+  });
+});
+
 // PUT /api/classrooms/:classroomId - Update classroom
 router.put('/:classroomId', updateClassroom);
 
